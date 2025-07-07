@@ -2,370 +2,53 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Админ-панель Очередь</title>
+  <title>Очередь гостей</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2em;
-      background-color: #f4f4f4;
-      color: #333;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-    }
-    .container {
-      background-color: #fff;
-      padding: 2em;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 900px;
-      margin: 0 auto; /* Центрируем контейнер */
-    }
-    h2 {
-      text-align: center;
-      color: #333;
-      margin-bottom: 1.5em;
-    }
-    .status-message {
-      text-align: center;
-      margin-top: 1em;
-      font-size: 1em;
-      color: #555;
-      min-height: 1.5em; /* Чтобы текст не "прыгал" при изменении */
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 1.5em;
-    }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
-    }
-    th {
-      background-color: #f2f2f2;
-    }
-    .invite-button, .logout-button, .login-button {
-      background-color: #007bff;
-      color: white;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9em;
-      transition: background-color 0.3s ease;
-      margin-top: 5px; /* Для небольшого отступа между элементами */
-    }
-    .invite-button:hover, .login-button:hover {
-      background-color: #0056b3;
-    }
-    .logout-button {
-        background-color: #dc3545; /* Красный для кнопки выхода */
-        float: right; /* Разместить справа */
-        margin-left: 10px;
-    }
-    .logout-button:hover {
-        background-color: #c82333;
-    }
-    .invite-button:disabled, .login-button:disabled, .logout-button:disabled {
-      background-color: #cccccc;
-      cursor: not-allowed;
-    }
-    .no-entries {
-        text-align: center;
-        margin-top: 20px;
-        color: #888;
-    }
-    .hidden {
-      display: none;
-    }
-    /* Стили для формы входа */
-    #loginForm {
-      max-width: 300px;
-      margin: 2em auto;
-      padding: 2em;
-      background-color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-    #loginForm input {
-      width: calc(100% - 1em); /* 100% ширины минус паддинг */
-      padding: 0.8em;
-      margin: 0.5em 0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-    }
-    #loginForm .login-button {
-        width: 100%;
-        margin-top: 1em;
-    }
-    .login-status-message {
-        text-align: center;
-        color: red; /* Красный для сообщений об ошибке логина */
-        margin-top: 1em;
-    }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+    button { padding: 6px 12px; background-color: #28a745; color: white; border: none; cursor: pointer; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2 id="mainTitle">Админ-панель Очередь</h2>
-    
-    <div id="loginForm" class="hidden">
-      <h3>Вход для администратора</h3>
-      <input type="text" id="username" placeholder="Логин" required>
-      <input type="password" id="password" placeholder="Пароль" required>
-      <button id="loginButton" class="login-button" onclick="handleLogin()">Войти</button>
-      <p id="loginStatus" class="login-status-message"></p>
-    </div>
-
-    <div id="adminPanelContent" class="hidden">
-      <button class="logout-button" onclick="handleLogout()">Выйти</button>
-      <p id="status" class="status-message"></p>
-      <table id="queueTable">
-        <thead>
-          <tr>
-            <th>Время записи</th>
-            <th>Имя гостя</th>
-            <th>Номер телефона</th>
-            <th>Количество гостей</th>
-            <th>Действие</th>
-          </tr>
-        </thead>
-        <tbody id="queueBody">
-          </tbody>
-      </table>
-      <p id="noEntriesMessage" class="no-entries hidden">В очереди пока никого нет.</p>
-    </div>
-  </div>
+  <h2>Очередь гостей</h2>
+  <table id="guests-table">
+    <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Действие</th></tr></thead>
+    <tbody></tbody>
+  </table>
 
   <script>
-    // !!! ЗАМЕНИТЕ НА ВАШ URL ВЕБ-ПРИЛОЖЕНИЯ GOOGLE APPS SCRIPT !!!
-    // Это тот же URL, что и для клиентской формы записи.
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz8BmL94xUZESV57gS9of7n2HYj4lH50uNc6hopoMI5eqr2OPnehrhuIGkaBlsjuJLn/exec"; 
-    // ТОТ ЖЕ ТОКЕН, ЧТО И В GOOGLE APPS SCRIPT (AUTH_TOKEN)
-    const AUTH_TOKEN_VALUE = 'UniqueAdminPanelToken_FjL2kP1oR8sT4vU9wX0yZ7aB6cE5d'; 
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyibgUPgTozZCM4xV7wuFkdM98ILAsX2Ku-AaDZn3qYV5LdwmXb60UDbvggy_ACvYzX/exec'; // замените на ваш URL
 
-    // Элементы страницы
-    const statusElement = document.getElementById("status");
-    const queueBody = document.getElementById("queueBody");
-    const noEntriesMessage = document.getElementById("noEntriesMessage");
-    
-    // Элементы формы входа
-    const loginForm = document.getElementById("loginForm");
-    const adminPanelContent = document.getElementById("adminPanelContent");
-    const usernameInput = document.getElementById("username");
-    const passwordInput = document.getElementById("password");
-    const loginButton = document.getElementById("loginButton");
-    const loginStatus = document.getElementById("loginStatus");
+    async function loadGuests() {
+      const res = await fetch(API_URL);
+      const guests = await res.json();
 
-    // Функция для переключения видимости панелей (логин / админ)
-    function showPanel(panelToShow) {
-        if (panelToShow === 'login') {
-            loginForm.classList.remove('hidden');
-            adminPanelContent.classList.add('hidden');
-        } else { // 'admin'
-            loginForm.classList.add('hidden');
-            adminPanelContent.classList.remove('hidden');
-        }
+      const tbody = document.querySelector("#guests-table tbody");
+      tbody.innerHTML = '';
+
+      guests.forEach(guest => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${guest.name}</td>
+          <td>${guest.phone}</td>
+          <td>${guest.count}</td>
+          <td><button onclick="invite(${guest.index})">Пригласить</button></td>
+        `;
+        tbody.appendChild(row);
+      });
     }
 
-    // Проверяем статус входа при загрузке страницы
-    function checkLoginStatus() {
-        const token = localStorage.getItem('adminAuthToken'); // Пытаемся получить токен из локального хранилища
-        if (token === AUTH_TOKEN_VALUE) { // Если токен совпадает, пользователь "залогинен"
-            showPanel('admin');
-            loadQueue(); // Загружаем очередь
-        } else {
-            showPanel('login'); // Показываем форму входа
-        }
+    async function invite(index) {
+      if (!confirm("Пригласить гостя?")) return;
+      await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ index })
+      });
+      loadGuests(); // обновить список
     }
 
-    // Обработчик входа
-    async function handleLogin() {
-        const username = usernameInput.value.trim();
-        const password = passwordInput.value.trim();
-
-        if (!username || !password) {
-            loginStatus.innerText = "Пожалуйста, введите логин и пароль.";
-            return;
-        }
-
-        loginButton.disabled = true; // Отключаем кнопку, чтобы избежать повторных нажатий
-        loginStatus.innerText = "Вход...";
-        loginStatus.style.color = "#555"; // Серый цвет для "Вход..."
-
-        try {
-            const response = await fetch(SCRIPT_URL, {
-                method: "POST",
-                mode: "cors", // Используем 'cors' для получения ответа от сервера
-                headers: { "Content-Type": "application/json" },
-                // Отправляем действие "login" и учетные данные
-                body: JSON.stringify({ action: "login", username, password })
-            });
-            const result = await response.json(); // Парсим JSON ответ от Apps Script
-
-            if (result.status === "ok" && result.token === AUTH_TOKEN_VALUE) {
-                localStorage.setItem('adminAuthToken', AUTH_TOKEN_VALUE); // Сохраняем токен в локальное хранилище
-                loginStatus.innerText = "Вход успешен!";
-                loginStatus.style.color = "green";
-                showPanel('admin'); // Показываем админ-панель
-                loadQueue(); // Загружаем данные очереди
-            } else {
-                loginStatus.innerText = result.message || "Ошибка входа. Попробуйте еще раз.";
-                loginStatus.style.color = "red";
-            }
-        } catch (error) {
-            console.error("Login failed:", error);
-            loginStatus.innerText = "Ошибка связи при входе. Проверьте подключение.";
-            loginStatus.style.color = "red";
-        } finally {
-            loginButton.disabled = false; // Включаем кнопку обратно
-        }
-    }
-
-    // Обработчик выхода
-    function handleLogout() {
-        if (confirm("Вы уверены, что хотите выйти?")) {
-            localStorage.removeItem('adminAuthToken'); // Удаляем токен из локального хранилища
-            showPanel('login'); // Показываем форму входа
-            usernameInput.value = ''; // Очищаем поля формы
-            passwordInput.value = '';
-            loginStatus.innerText = ''; // Очищаем сообщение о статусе логина
-        }
-    }
-
-    // Функция для загрузки данных очереди
-    async function loadQueue() {
-      statusElement.innerText = "Загрузка очереди...";
-      const token = localStorage.getItem('adminAuthToken'); // Получаем токен для запроса
-
-      if (!token || token !== AUTH_TOKEN_VALUE) {
-        statusElement.style.color = "red";
-        statusElement.innerText = "Сессия истекла или неавторизован. Пожалуйста, войдите снова.";
-        showPanel('login'); // Принудительно показываем логин, если токена нет/неверен
-        return;
-      }
-
-      try {
-        // Для GET-запроса токен и действие передаются в URL-параметрах
-        const response = await fetch(`${SCRIPT_URL}?action=getQueue&token=${token}`, {
-          method: "GET", 
-          mode: "cors" // Обязательно для кросс-доменных запросов
-        });
-        const result = await response.json(); // Парсим JSON ответ
-
-        queueBody.innerHTML = ''; // Очищаем таблицу перед заполнением
-        if (result.status === "ok" && result.queue.length > 0) {
-          result.queue.forEach((guest, index) => {
-            const row = queueBody.insertRow();
-            // Каждая строка в таблице админа будет знать свой оригинальный индекс в таблице Google
-            // это нужно для функции processGuestAndSendSMS, которая удалит именно эту строку
-            row.dataset.rowIndex = index; 
-
-            row.insertCell().innerText = guest.timestamp;
-            row.insertCell().innerText = guest.name;
-            row.insertCell().innerText = guest.phone;
-            row.insertCell().innerText = guest.guests;
-
-            const actionCell = row.insertCell();
-            const inviteButton = document.createElement("button");
-            inviteButton.className = "invite-button";
-            inviteButton.innerText = "Пригласить гостя";
-            // Привязываем функцию inviteGuest к кнопке, передавая нужные данные
-            inviteButton.onclick = () => inviteGuest(row.dataset.rowIndex, guest.phone, guest.name, inviteButton);
-            actionCell.appendChild(inviteButton);
-          });
-          statusElement.innerText = "Очередь успешно загружена.";
-          noEntriesMessage.classList.add("hidden"); // Скрываем сообщение "никого нет"
-        } else if (result.status === "ok" && result.queue.length === 0) {
-          statusElement.innerText = "Очередь пуста.";
-          noEntriesMessage.classList.remove("hidden"); // Показываем сообщение "никого нет"
-        } else {
-          statusElement.style.color = "red";
-          statusElement.innerText = `Ошибка при загрузке очереди: ${result.message || "Неизвестная ошибка."}`;
-          noEntriesMessage.classList.remove("hidden"); // Показываем сообщение "никого нет"
-        }
-      } catch (error) {
-        console.error("Произошла ошибка при загрузке очереди:", error);
-        statusElement.style.color = "red";
-        statusElement.innerText = "Ошибка связи при загрузке очереди. Проверьте интернет или консоль.";
-      }
-    }
-
-    // Функция для приглашения гостя и отправки SMS
-    async function inviteGuest(rowIndex, phoneNumber, guestName, buttonElement) {
-      if (!confirm(`Вы уверены, что хотите пригласить ${guestName} (${phoneNumber})?`)) {
-        return; // Отмена, если пользователь не подтвердил
-      }
-
-      buttonElement.disabled = true; // Отключаем кнопку, чтобы избежать повторных кликов
-      buttonElement.innerText = "Отправка...";
-      statusElement.innerText = "Отправка приглашения и обработка...";
-      
-      const token = localStorage.getItem('adminAuthToken'); // Получаем токен для запроса
-
-      try {
-        const response = await fetch(SCRIPT_URL, {
-          method: "POST", // Это POST-запрос к Apps Script
-          mode: "cors",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          // Передаем действие "processGuest", данные гостя и токен
-          body: JSON.stringify({ 
-              action: "processGuest", 
-              rowIndex: rowIndex, 
-              phoneNumber: phoneNumber, 
-              guestName: guestName,
-              token: token // Включаем токен в POST-запрос
-          })
-        });
-        const result = await response.json(); // Парсим JSON ответ
-
-        if (result.status === "ok") {
-          statusElement.style.color = "green";
-          statusElement.innerText = `Приглашение для ${guestName} отправлено! SMS статус: ${result.smsStatus}`;
-          // Удаляем строку из таблицы на сайте
-          buttonElement.closest('tr').remove(); 
-          // Если очередь опустела, показываем сообщение "никого нет"
-          if (queueBody.rows.length === 0) {
-              noEntriesMessage.classList.remove("hidden");
-              statusElement.innerText = "Очередь пуста.";
-          }
-        } else if (result.status === "warning") {
-            // Если гость обработан, но SMS не отправлено (предупреждение от сервера)
-            statusElement.style.color = "orange";
-            statusElement.innerText = `Гость обработан, но SMS не отправлено: ${result.message || "Ошибка SMS."}`;
-            buttonElement.closest('tr').remove(); // Все равно удаляем строку, так как гость был перемещен
-            if (queueBody.rows.length === 0) {
-                noEntriesMessage.classList.remove("hidden");
-                statusElement.innerText = "Очередь пуста.";
-            }
-        } 
-        else {
-          // Общая ошибка от сервера
-          statusElement.style.color = "red";
-          statusElement.innerText = `Ошибка при обработке гостя: ${result.message || "Неизвестная ошибка."}`;
-          buttonElement.disabled = false; // Включаем кнопку обратно, если была ошибка
-          buttonElement.innerText = "Пригласить гостя";
-        }
-
-      } catch (error) {
-        console.error("Ошибка сети или запроса при обработке гостя:", error);
-        statusElement.style.color = "red";
-        statusElement.innerText = "Ошибка связи при отправке приглашения. Проверьте интернет или консоль.";
-        buttonElement.disabled = false; 
-        buttonElement.innerText = "Пригласить гостя";
-      }
-    }
-
-    // Вызываем функцию проверки статуса входа при загрузке страницы
-    window.onload = checkLoginStatus;
+    loadGuests();
   </script>
 </body>
 </html>

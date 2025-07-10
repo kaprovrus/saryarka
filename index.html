@@ -1,111 +1,179 @@
-const QUEUE_SHEET_ID = '1zvb5y6j42EtGeJ9YXgBlPUNcBLXLw8_tG3w2H0qOROg';
-const PROCESSED_SHEET_ID = '1_I_9ydPf4sUFSMK2DJNuhICiJ44QxU_gsWLX5EsYAOM';
-const SHEET_QUEUE = 'sh';
-const SHEET_PROCESSED = 'Приглашённые';
-const SHEET_AUTH = 'password';
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Очередь гостей</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+    button { padding: 6px 12px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+    button:disabled { background-color: #aaa; cursor: not-allowed; }
+    h2 { margin-top: 40px; }
+    .timer { margin-left: 10px; color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="login-section">
+    <h2>Вход</h2>
+    <input id="login" placeholder="Логин"><br><br>
+    <input id="password" type="password" placeholder="Пароль"><br><br>
+    <button onclick="handleLogin()">Войти</button>
+    <p id="login-error" style="color: red;"></p>
+  </div>
 
-const SMSC_LOGIN = 'Shipudim';
-const SMSC_PASSWORD = 'Dbrq3qcf';
+  <div id="main-section" style="display: none;">
+    <h2>Гости в очереди</h2>
+    <table id="queue-table">
+      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Действие</th></tr></thead>
+      <tbody></tbody>
+    </table>
 
-function doGet(e) {
-  if (!isAuthorized(e)) {
-    return ContentService.createTextOutput(JSON.stringify({ authorized: false }));
-  }
+    <h2>Приглашённые гости</h2>
+    <table id="invited-table">
+      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
-  const queueSheet = SpreadsheetApp.openById(QUEUE_SHEET_ID).getSheetByName(SHEET_QUEUE);
-  const processedSheet = SpreadsheetApp.openById(PROCESSED_SHEET_ID).getSheetByName(SHEET_PROCESSED);
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyibgUPgTozZCM4xV7wuFkdM98ILAsX2Ku-AaDZn3qYV5LdwmXb60UDbvggy_ACvYzX/exec';
+    const AUTO_LOGOUT_MS = 3 * 60 * 1000; // 10 минут
+    let logoutTimer;
 
-  const queueData = queueSheet.getDataRange().getValues().slice(1);
-  const invitedData = processedSheet.getDataRange().getValues().slice(1);
+    async function handleLogin() {
+      const login = document.getElementById('login').value.trim();
+      const password = document.getElementById('password').value.trim();
 
-  const today = new Date();
-  const todayStr = formatDate(today);
+      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-  const queue = queueData
-    .map((row, i) => ({
-      rawIndex: i,
-      name: row[1],
-      phone: row[2],
-      count: row[3],
-      time: row[0],
-      lang: row[4] || 'Русский'
-    }))
-    .filter(guest => formatDate(new Date(guest.time)) === todayStr);
+      if (!data.authorized) {
+        document.getElementById('login-error').textContent = "Неверный логин или пароль";
+        return;
+      }
 
-  const invited = invitedData
-    .map(row => ({
-      name: row[1],
-      phone: row[2],
-      count: row[3],
-      invitedAt: row[4],
-      lang: row[5] || 'Русский'
-    }))
-    .filter(guest => formatDate(new Date(guest.invitedAt)) === todayStr);
+      localStorage.setItem('login', login);
+      localStorage.setItem('password', password);
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = '';
+      resetLogoutTimer();
+      loadGuests();
+    }
 
-  return ContentService.createTextOutput(JSON.stringify({ authorized: true, queue, invited }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+    function getAuthParams() {
+      return {
+        login: localStorage.getItem('login'),
+        password: localStorage.getItem('password')
+      };
+    }
 
-function doPost(e) {
-  if (!isAuthorized(e)) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Unauthorized' }));
-  }
+    async function loadGuests() {
+      const { login, password } = getAuthParams();
+      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+      const res = await fetch(url);
+      const data = await res.json();
 
-  try {
-    const index = parseInt(e.parameter.index);
-    const queueSheet = SpreadsheetApp.openById(QUEUE_SHEET_ID).getSheetByName(SHEET_QUEUE);
-    const processedSheet = SpreadsheetApp.openById(PROCESSED_SHEET_ID).getSheetByName(SHEET_PROCESSED);
-    const data = queueSheet.getDataRange().getValues();
+      if (!data.authorized) {
+        alert("Сессия истекла. Пожалуйста, войдите снова.");
+        localStorage.clear();
+        location.reload();
+        return;
+      }
 
-    const row = data[index + 1];
-    const [recordTime, name, phone, count, lang] = row;
-    const inviteTime = new Date();
+      const queueBody = document.querySelector("#queue-table tbody");
+      const invitedBody = document.querySelector("#invited-table tbody");
+      queueBody.innerHTML = '';
+      invitedBody.innerHTML = '';
 
-    const message = getMessageForLanguage(lang);
-    const url = `https://smsc.kz/sys/send.php?login=${SMSC_LOGIN}&psw=${SMSC_PASSWORD}&phones=${phone}&mes=${encodeURIComponent(message)}`;
-    UrlFetchApp.fetch(url);
+      data.queue.forEach(guest => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${guest.name}</td>
+          <td>${guest.phone}</td>
+          <td>${guest.count}</td>
+          <td>${formatDate(guest.time)}</td>
+          <td>
+            <button onclick="invite(this, ${guest.rawIndex})">Пригласить</button>
+            <span class="timer" style="display:none;">15</span>
+          </td>
+        `;
+        queueBody.appendChild(row);
+      });
 
-    processedSheet.appendRow([recordTime, name, phone, count, inviteTime, lang]);
-    queueSheet.deleteRow(index + 2);
+      data.invited.forEach(guest => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${guest.name}</td>
+          <td>${guest.phone}</td>
+          <td>${guest.count}</td>
+          <td>${formatDate(guest.invitedAt)}</td>
+        `;
+        invitedBody.appendChild(row);
+      });
+    }
 
-    return ContentService.createTextOutput(JSON.stringify({ success: true }));
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: err.message
-    }));
-  }
-}
+    async function invite(button, index) {
+      if (!confirm("Пригласить этого гостя?")) return;
 
-function isAuthorized(e) {
-  const login = e.parameter.login;
-  const password = e.parameter.password;
-  if (!login || !password) return false;
+      button.disabled = true;
+      const timerSpan = button.nextElementSibling;
+      timerSpan.style.display = 'inline';
 
-  const sha1 = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, password)
-    .map(b => ('0' + (b & 0xFF).toString(16)).slice(-2))
-    .join('');
+      let seconds = 15;
+      const countdown = setInterval(() => {
+        seconds--;
+        timerSpan.textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(countdown);
+        }
+      }, 1000);
 
-  const sheet = SpreadsheetApp.openById(PROCESSED_SHEET_ID).getSheetByName(SHEET_AUTH);
-  const rows = sheet.getDataRange().getValues().slice(1); // без заголовка
+      const { login, password } = getAuthParams();
 
-  return rows.some(([storedLogin, storedHash]) => {
-    return storedLogin === login && storedHash === sha1;
-  });
-}
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ index, login, password })
+      });
 
-function formatDate(date) {
-  return Utilities.formatDate(date, Session.getScriptTimeZone(), "yyyy-MM-dd");
-}
+      const result = await res.json();
+      if (!result.success) {
+        alert("Ошибка: " + (result.error || "Неизвестная ошибка"));
+        button.disabled = false;
+        timerSpan.style.display = 'none';
+        clearInterval(countdown);
+        return;
+      }
 
-function getMessageForLanguage(lang) {
-  switch ((lang || '').toLowerCase()) {
-    case 'қазақша':
-    case 'kazakh':
-      return `Shupudim Сары-Арқа. Құрметті қонағымыз! Сіздің үстеліңіз дайын. Келуіңізді күтеміз!`;
-    case 'english':
-      return `Shupudim Sary-Arka. Dear guest! Your table is ready. We look forward to seeing you!`;
-    default:
-      return `Shupudim Сары-Арка. Здравствуйте, уважаемый гость! Ваш столик готов. Ждём вас!`;
-  }
-}
+      setTimeout(() => location.reload(), 15000); // ⏳ Обновление через 15 сек
+    }
+
+    function formatDate(date) {
+      const d = new Date(date);
+      return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function resetLogoutTimer() {
+      clearTimeout(logoutTimer);
+      logoutTimer = setTimeout(() => {
+        alert("Сессия завершена из-за бездействия.");
+        localStorage.clear();
+        location.reload();
+      }, AUTO_LOGOUT_MS);
+    }
+
+    ['click', 'mousemove', 'keydown', 'touchstart'].forEach(evt =>
+      document.addEventListener(evt, resetLogoutTimer)
+    );
+
+    if (localStorage.getItem('login') && localStorage.getItem('password')) {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = '';
+      resetLogoutTimer();
+      loadGuests();
+    }
+  </script>
+</body>
+</html>

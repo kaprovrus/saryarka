@@ -38,6 +38,8 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbyibgUPgTozZCM4xV7wuFkdM98ILAsX2Ku-AaDZn3qYV5LdwmXb60UDbvggy_ACvYzX/exec';
     const BLOCK_DURATION = 30000;
+    const AUTO_LOGOUT_MS = 10 * 60 * 1000; // 10 минут
+    let logoutTimer;
 
     async function handleLogin() {
       const login = document.getElementById('login').value.trim();
@@ -56,6 +58,7 @@
       localStorage.setItem('password', password);
       document.getElementById('login-section').style.display = 'none';
       document.getElementById('main-section').style.display = '';
+      resetLogoutTimer();
       loadGuests();
     }
 
@@ -127,11 +130,18 @@
       localStorage.setItem('buttonsBlockedUntil', Date.now() + BLOCK_DURATION);
       disableButtons();
 
-      await fetch(API_URL, {
+      const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ index, login, password })
       });
+
+      const result = await res.json();
+      if (!result.success) {
+        alert("Ошибка: " + (result.error || "Неизвестная ошибка"));
+        enableButtons();
+        return;
+      }
 
       await loadGuests();
       setTimeout(enableButtons, BLOCK_DURATION);
@@ -155,10 +165,23 @@
       return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
     }
 
-    // Автологин
+    function resetLogoutTimer() {
+      clearTimeout(logoutTimer);
+      logoutTimer = setTimeout(() => {
+        alert("Сессия завершена из-за бездействия.");
+        localStorage.clear();
+        location.reload();
+      }, AUTO_LOGOUT_MS);
+    }
+
+    ['click', 'mousemove', 'keydown', 'touchstart'].forEach(evt =>
+      document.addEventListener(evt, resetLogoutTimer)
+    );
+
     if (localStorage.getItem('login') && localStorage.getItem('password')) {
       document.getElementById('login-section').style.display = 'none';
       document.getElementById('main-section').style.display = '';
+      resetLogoutTimer();
       loadGuests();
     }
   </script>

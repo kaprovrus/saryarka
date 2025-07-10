@@ -1,74 +1,83 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Очередь гостей</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      margin-bottom: 30px;
-    }
-    th, td {
-      border: 1px solid #999;
-      padding: 8px;
-      text-align: left;
-    }
-    button {
-      padding: 6px 12px;
-      background-color: #28a745;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
-    h2 {
-      margin-top: 40px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+    button { padding: 6px 12px; background-color: #28a745; color: white; border: none; cursor: pointer; }
+    button:disabled { background-color: #aaa; }
+    h2 { margin-top: 40px; }
   </style>
 </head>
 <body>
-  <h2>Гости в очереди</h2>
-  <table id="queue-table">
-    <thead>
-      <tr>
-        <th>Имя</th>
-        <th>Телефон</th>
-        <th>Кол-во</th>
-        <th>Время записи</th>
-        <th>Действие</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div id="login-section">
+    <h2>Вход</h2>
+    <input id="login" placeholder="Логин"><br><br>
+    <input id="password" type="password" placeholder="Пароль"><br><br>
+    <button onclick="handleLogin()">Войти</button>
+    <p id="login-error" style="color: red;"></p>
+  </div>
 
-  <h2>Приглашённые гости</h2>
-  <table id="invited-table">
-    <thead>
-      <tr>
-        <th>Имя</th>
-        <th>Телефон</th>
-        <th>Кол-во</th>
-        <th>Приглашён в</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div id="main-section" style="display: none;">
+    <h2>Гости в очереди</h2>
+    <table id="queue-table">
+      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Действие</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h2>Приглашённые гости</h2>
+    <table id="invited-table">
+      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbyibgUPgTozZCM4xV7wuFkdM98ILAsX2Ku-AaDZn3qYV5LdwmXb60UDbvggy_ACvYzX/exec';
-    const BLOCK_DURATION = 30000; // 30 секунд
+    const BLOCK_DURATION = 30000;
+
+    async function handleLogin() {
+      const login = document.getElementById('login').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (!data.authorized) {
+        document.getElementById('login-error').textContent = "Неверный логин или пароль";
+        return;
+      }
+
+      localStorage.setItem('login', login);
+      localStorage.setItem('password', password);
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = '';
+      loadGuests();
+    }
+
+    function getAuthParams() {
+      return {
+        login: localStorage.getItem('login'),
+        password: localStorage.getItem('password')
+      };
+    }
 
     async function loadGuests() {
-      const res = await fetch(API_URL);
+      const { login, password } = getAuthParams();
+      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+      const res = await fetch(url);
       const data = await res.json();
+
+      if (!data.authorized) {
+        alert("Сессия истекла. Пожалуйста, войдите снова.");
+        localStorage.clear();
+        location.reload();
+        return;
+      }
 
       const queueBody = document.querySelector("#queue-table tbody");
       const invitedBody = document.querySelector("#invited-table tbody");
@@ -77,17 +86,20 @@
 
       const now = Date.now();
       const blockedUntil = parseInt(localStorage.getItem('buttonsBlockedUntil') || '0');
-      const buttonsShouldBeDisabled = now < blockedUntil;
+      const disableButtonsNow = now < blockedUntil;
+
+      const invitedPhones = data.invited.map(g => g.phone);
 
       data.queue.forEach(guest => {
+        if (invitedPhones.includes(guest.phone)) return;
         const row = document.createElement('tr');
-        const disabledAttr = buttonsShouldBeDisabled ? 'disabled' : '';
+        const disabledAttr = disableButtonsNow ? 'disabled' : '';
         row.innerHTML = `
           <td>${guest.name}</td>
           <td>${guest.phone}</td>
           <td>${guest.count}</td>
           <td>${formatDate(guest.time)}</td>
-          <td><button onclick="invite(${guest.index}, this)" ${disabledAttr}>Пригласить</button></td>
+          <td><button onclick="invite(${guest.rawIndex})" ${disabledAttr}>Пригласить</button></td>
         `;
         queueBody.appendChild(row);
       });
@@ -103,49 +115,52 @@
         invitedBody.appendChild(row);
       });
 
-      if (buttonsShouldBeDisabled) {
-        const remaining = blockedUntil - now;
-        setTimeout(() => enableButtons(), remaining);
+      if (disableButtonsNow) {
+        setTimeout(enableButtons, blockedUntil - now);
       }
     }
 
-    async function invite(index, button) {
+    async function invite(index) {
       if (!confirm("Пригласить этого гостя?")) return;
 
-      const blockUntil = Date.now() + BLOCK_DURATION;
-      localStorage.setItem('buttonsBlockedUntil', blockUntil.toString());
-
+      const { login, password } = getAuthParams();
+      localStorage.setItem('buttonsBlockedUntil', Date.now() + BLOCK_DURATION);
       disableButtons();
 
       await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ index })
+        body: new URLSearchParams({ index, login, password })
       });
 
       await loadGuests();
-
-      setTimeout(() => enableButtons(), BLOCK_DURATION);
+      setTimeout(enableButtons, BLOCK_DURATION);
     }
 
     function disableButtons() {
-      const buttons = document.querySelectorAll("#queue-table button");
-      buttons.forEach(btn => btn.disabled = true);
+      document.querySelectorAll("button").forEach(btn => {
+        if (btn.textContent === "Пригласить") btn.disabled = true;
+      });
     }
 
     function enableButtons() {
-      const buttons = document.querySelectorAll("#queue-table button");
-      buttons.forEach(btn => btn.disabled = false);
+      document.querySelectorAll("button").forEach(btn => {
+        if (btn.textContent === "Пригласить") btn.disabled = false;
+      });
       localStorage.removeItem('buttonsBlockedUntil');
     }
 
     function formatDate(date) {
-      if (!date) return '';
       const d = new Date(date);
       return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
     }
 
-    loadGuests();
+    // Автологин
+    if (localStorage.getItem('login') && localStorage.getItem('password')) {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('main-section').style.display = '';
+      loadGuests();
+    }
   </script>
 </body>
 </html>

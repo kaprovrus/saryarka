@@ -1,179 +1,502 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Очередь гостей</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 30px; }
-    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
-    button { padding: 6px 12px; background-color: #28a745; color: white; border: none; cursor: pointer; }
-    button:disabled { background-color: #aaa; cursor: not-allowed; }
-    h2 { margin-top: 40px; }
-    .timer { margin-left: 10px; color: red; font-weight: bold; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Очередь гостей</title>
+    <style>
+        :root {
+            --primary-color: #1e3a8a;
+            --success-color: #28a745;
+            --danger-color: #d9534f;
+            --light-bg: #f4f4f4;
+            --white: #fff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: var(--light-bg);
+            color: #333;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 5px;
+            margin-top: 40px;
+        }
+
+        h0 {
+            display: block;
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            background-color: var(--white);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        button {
+            padding: 8px 14px;
+            background-color: var(--success-color);
+            color: var(--white);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #218838;
+        }
+
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            max-width: 250px;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        input[type="text"] {
+            max-width: 80px;
+        }
+
+        .timer {
+            color: var(--danger-color);
+            font-weight: bold;
+            font-size: 1.1em;
+            white-space: nowrap;
+        }
+
+        .expired {
+            background-color: #f8d7da !important;
+            color: #721c24;
+        }
+
+        .arrived {
+            background-color: #d4edda !important;
+            color: #155724;
+        }
+
+        #login-section, #main-section {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+            max-width: 960px;
+            margin: auto;
+        }
+
+        #login-error {
+            color: var(--danger-color);
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        @media screen and (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            tr {
+                margin-bottom: 15px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background-color: var(--white);
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+
+            td {
+                padding: 12px 10px;
+                padding-left: 50%;
+                position: relative;
+                text-align: right;
+                border: none;
+                word-wrap: break-word;
+            }
+
+            td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 10px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: normal;
+                font-weight: bold;
+                text-align: left;
+                color: #555;
+            }
+
+            input[type="text"] {
+                width: 100%;
+                max-width: none;
+                margin: 0;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="login-section">
+
+<div id="login-section">
     <h2>Вход</h2>
-    <input id="login" placeholder="Логин"><br><br>
-    <input id="password" type="password" placeholder="Пароль"><br><br>
+    <input id="login" placeholder="Логин" autocomplete="username"><br><br>
+    <input id="password" type="password" placeholder="Пароль" autocomplete="current-password"><br><br>
     <button onclick="handleLogin()">Войти</button>
-    <p id="login-error" style="color: red;"></p>
-  </div>
+    <p id="login-error"></p>
+</div>
 
-  <div id="main-section" style="display: none;">
+<div id="main-section" style="display: none;">
     <h2>Гости в очереди</h2>
-    <table id="queue-table">
-      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Действие</th></tr></thead>
-      <tbody></tbody>
-    </table>
-    <h0>Показаны только гости на сегодня. За статистикой обращайтесь к администратору.<h0>
+    <div class="table-responsive">
+        <table id="queue-table">
+            <thead>
+                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Номер стола</th><th>Действие</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    <h0>Показаны только гости на сегодня. За статистикой обращайтесь к администратору.</h0>
     <h2>Приглашённые гости</h2>
-    <table id="invited-table">
-      <thead><tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th></tr></thead>
-      <tbody></tbody>
-    </table>
-  </div>
+    <div class="table-responsive">
+        <table id="invited-table">
+            <thead>
+                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th><th>Номер стола</th><th>Осталось</th><th>Действие</th></tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
 
-  <script>
+<script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbyibgUPgTozZCM4xV7wuFkdM98ILAsX2Ku-AaDZn3qYV5LdwmXb60UDbvggy_ACvYzX/exec';
-    const AUTO_LOGOUT_MS = 3 * 60 * 1000; // 10 минут
+    const AUTO_LOGOUT_MS = 60 * 60 * 1000;
     let logoutTimer;
+    let activeTimers = [];
 
-    async function handleLogin() {
-      const login = document.getElementById('login').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!data.authorized) {
-        document.getElementById('login-error').textContent = "Неверный логин или пароль";
-        return;
-      }
-
-      localStorage.setItem('login', login);
-      localStorage.setItem('password', password);
-      document.getElementById('login-section').style.display = 'none';
-      document.getElementById('main-section').style.display = '';
-      resetLogoutTimer();
-      loadGuests();
-    }
-
+    // --- Утилитарные функции ---
     function getAuthParams() {
-      return {
-        login: localStorage.getItem('login'),
-        password: localStorage.getItem('password')
-      };
-    }
-
-    async function loadGuests() {
-      const { login, password } = getAuthParams();
-      const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
-      const res = await fetch(url);
-      const data = await res.json();
-
-      if (!data.authorized) {
-        alert("Сессия истекла. Пожалуйста, войдите снова.");
-        localStorage.clear();
-        location.reload();
-        return;
-      }
-
-      const queueBody = document.querySelector("#queue-table tbody");
-      const invitedBody = document.querySelector("#invited-table tbody");
-      queueBody.innerHTML = '';
-      invitedBody.innerHTML = '';
-
-      data.queue.forEach(guest => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${guest.name}</td>
-          <td>${guest.phone}</td>
-          <td>${guest.count}</td>
-          <td>${formatDate(guest.time)}</td>
-          <td>
-            <button onclick="invite(this, ${guest.rawIndex})">Пригласить</button>
-            <span class="timer" style="display:none;">15</span>
-          </td>
-        `;
-        queueBody.appendChild(row);
-      });
-
-      data.invited.forEach(guest => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${guest.name}</td>
-          <td>${guest.phone}</td>
-          <td>${guest.count}</td>
-          <td>${formatDate(guest.invitedAt)}</td>
-        `;
-        invitedBody.appendChild(row);
-      });
-    }
-
-    async function invite(button, index) {
-      if (!confirm("Пригласить этого гостя?")) return;
-
-      button.disabled = true;
-      const timerSpan = button.nextElementSibling;
-      timerSpan.style.display = 'inline';
-
-      let seconds = 15;
-      const countdown = setInterval(() => {
-        seconds--;
-        timerSpan.textContent = seconds;
-        if (seconds <= 0) {
-          clearInterval(countdown);
-        }
-      }, 1000);
-
-      const { login, password } = getAuthParams();
-
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ index, login, password })
-      });
-
-      const result = await res.json();
-      if (!result.success) {
-        alert("Ошибка: " + (result.error || "Неизвестная ошибка"));
-        button.disabled = false;
-        timerSpan.style.display = 'none';
-        clearInterval(countdown);
-        return;
-      }
-
-      setTimeout(() => location.reload(), 15000); // ⏳ Обновление через 15 сек
+        return {
+            login: localStorage.getItem('login'),
+            password: localStorage.getItem('password')
+        };
     }
 
     function formatDate(date) {
-      const d = new Date(date);
-      return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+        const d = new Date(date);
+        return d.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+    }
+
+    function formatTime(seconds) {
+        if (seconds <= 0) return '00:00';
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        return `${m}:${s}`;
     }
 
     function resetLogoutTimer() {
-      clearTimeout(logoutTimer);
-      logoutTimer = setTimeout(() => {
-        alert("Сессия завершена из-за бездействия.");
-        localStorage.clear();
-        location.reload();
-      }, AUTO_LOGOUT_MS);
+        clearTimeout(logoutTimer);
+        logoutTimer = setTimeout(() => {
+            alert("Сессия завершена из-за бездействия.");
+            localStorage.clear();
+            location.reload();
+        }, AUTO_LOGOUT_MS);
     }
 
+    // --- Обработчики событий ---
+    async function handleLogin() {
+        const login = document.getElementById('login').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+        
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.authorized) {
+                document.getElementById('login-error').textContent = "Неверный логин или пароль";
+                return;
+            }
+
+            localStorage.setItem('login', login);
+            localStorage.setItem('password', password);
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('main-section').style.display = '';
+            resetLogoutTimer();
+            loadGuests();
+        } catch (error) {
+            document.getElementById('login-error').textContent = "Ошибка подключения к серверу.";
+            console.error("Ошибка при авторизации:", error);
+        }
+    }
+
+    async function loadGuests() {
+        activeTimers.forEach(timerId => clearInterval(timerId));
+        activeTimers = [];
+
+        const { login, password } = getAuthParams();
+        if (!login || !password) {
+            // Если нет данных для авторизации, показываем экран входа
+            document.getElementById('login-section').style.display = '';
+            document.getElementById('main-section').style.display = 'none';
+            return;
+        }
+
+        const url = `${API_URL}?login=${encodeURIComponent(login)}&password=${encodeURIComponent(password)}`;
+        
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.authorized) {
+                alert("Сессия истекла. Пожалуйста, войдите снова.");
+                localStorage.clear();
+                location.reload();
+                return;
+            }
+
+            const queueBody = document.querySelector("#queue-table tbody");
+            const invitedBody = document.querySelector("#invited-table tbody");
+            queueBody.innerHTML = '';
+            invitedBody.innerHTML = '';
+
+            data.queue.forEach((guest, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td data-label="Имя">${guest.name || ''}</td>
+                    <td data-label="Телефон">${guest.phone || ''}</td>
+                    <td data-label="Кол-во">${guest.count || ''}</td>
+                    <td data-label="Время записи">${formatDate(guest.time)}</td>
+                    <td data-label="Номер стола"><input type="text" placeholder="№"></td>
+                    <td data-label="Действие">
+                        <button onclick="invite(this, ${index}, '${guest.name}', '${guest.lang || 'Русский'}')">Пригласить</button>
+                    </td>
+                `;
+                queueBody.appendChild(row);
+            });
+
+            data.invited.forEach(guest => {
+                const row = document.createElement('tr');
+                const invitedAt = new Date(guest.invitedAt);
+                const now = new Date();
+                const secondsPassed = Math.floor((now - invitedAt) / 1000);
+                const secondsLeft = 600 - secondsPassed;
+
+                row.className = guest.isArrived ? 'arrived' : (secondsLeft <= 0 ? 'expired' : '');
+
+                let timeText;
+                let buttonHtml;
+
+                if (guest.isArrived) {
+                    timeText = 'Пришёл';
+                    buttonHtml = '<span>Пришёл</span>';
+                } else {
+                    timeText = secondsLeft > 0 ? formatTime(secondsLeft) : 'Время вышло';
+                    buttonHtml = `<button onclick="markArrived(this, '${guest.phone}')">Пришёл</button>`;
+                }
+
+                row.innerHTML = `
+                    <td data-label="Имя">${guest.name || ''}</td>
+                    <td data-label="Телефон">${guest.phone || ''}</td>
+                    <td data-label="Кол-во">${guest.count || ''}</td>
+                    <td data-label="Приглашён в">${formatDate(guest.invitedAt)}</td>
+                    <td data-label="Номер стола">${guest.tableNumber || ''}</td>
+                    <td class="timer" data-label="Осталось">${timeText}</td>
+                    <td data-label="Действие">${buttonHtml}</td>
+                `;
+
+                invitedBody.appendChild(row);
+
+                if (secondsLeft > 0 && !guest.isArrived) {
+                    const timerId = startTimer(row, secondsLeft);
+                    activeTimers.push(timerId);
+                }
+            });
+        } catch (error) {
+            alert("Произошла ошибка при загрузке данных.");
+            console.error("Ошибка при загрузке гостей:", error);
+        }
+    }
+
+    function startTimer(row, timeLeft) {
+        const timerCell = row.querySelector('.timer');
+        const interval = setInterval(() => {
+            timeLeft--;
+            if (row.classList.contains('arrived')) {
+                clearInterval(interval);
+                return;
+            }
+            if (timeLeft <= 0) {
+                clearInterval(interval);
+                timerCell.textContent = "Время вышло";
+                row.classList.add("expired");
+            } else {
+                timerCell.textContent = formatTime(timeLeft);
+            }
+        }, 1000);
+        return interval;
+    }
+
+    async function markArrived(button, phone) {
+        const row = button.closest('tr');
+        const tableNumber = row.querySelector('[data-label="Номер стола"]').textContent.trim();
+        
+        button.disabled = true;
+
+        const { login, password } = getAuthParams();
+        
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    login,
+                    password,
+                    action: 'arrived',
+                    phone,
+                    tableNumber
+                })
+            });
+
+            const result = await res.json();
+            if (!result.success) {
+                alert("Ошибка: " + (result.error || "Неизвестная ошибка"));
+                button.disabled = false;
+                return;
+            }
+            
+            // Если успешно, сразу обновляем UI
+            row.classList.add('arrived');
+            const timerCell = row.querySelector('.timer');
+            timerCell.textContent = 'Пришёл';
+            const actionCell = row.querySelector('td:last-child');
+            actionCell.innerHTML = '<span>Пришёл</span>';
+
+        } catch (error) {
+            alert("Ошибка сети. Попробуйте снова.");
+            console.error("Ошибка при отметке прибытия:", error);
+            button.disabled = false;
+        } finally {
+             // Перезагружаем данные через 1 секунду для синхронизации
+             setTimeout(loadGuests, 1000);
+        }
+    }
+
+    async function invite(button, index, name, lang) {
+        const tableCell = button.parentElement.previousElementSibling;
+        const tableNumber = tableCell.querySelector('input').value.trim();
+
+        if (!tableNumber) {
+            alert("Введите номер стола перед приглашением.");
+            return;
+        }
+
+        if (!confirm(`Пригласить гостя ${name} на стол №${tableNumber}?`)) return;
+
+        button.disabled = true;
+        const parentRow = button.closest('tr');
+
+        const { login, password } = getAuthParams();
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ index, login, password, tableNumber, name, lang })
+            });
+
+            const result = await res.json();
+            if (!result.success) {
+                alert("Ошибка: " + (result.error || "Неизвестная ошибка"));
+                button.disabled = false;
+                return;
+            }
+
+            // Плавное удаление строки из очереди
+            parentRow.style.transition = 'opacity 0.5s ease';
+            parentRow.style.opacity = '0';
+            setTimeout(() => {
+                parentRow.remove();
+                loadGuests(); // Перезагружаем, чтобы обновить обе таблицы
+            }, 500);
+
+        } catch (error) {
+            alert("Ошибка сети. Попробуйте снова.");
+            console.error("Ошибка при приглашении:", error);
+            button.disabled = false;
+        }
+    }
+    
+    // --- Инициализация ---
     ['click', 'mousemove', 'keydown', 'touchstart'].forEach(evt =>
-      document.addEventListener(evt, resetLogoutTimer)
+        document.addEventListener(evt, resetLogoutTimer)
     );
 
     if (localStorage.getItem('login') && localStorage.getItem('password')) {
-      document.getElementById('login-section').style.display = 'none';
-      document.getElementById('main-section').style.display = '';
-      resetLogoutTimer();
-      loadGuests();
+        document.getElementById('login-section').style.display = 'none';
+        document.getElementById('main-section').style.display = '';
+        resetLogoutTimer();
+        loadGuests();
     }
-  </script>
+</script>
+
 </body>
 </html>

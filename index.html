@@ -163,7 +163,7 @@
 
         td {
             padding: 12px 10px;
-            padding-left: 50%;
+            padding-left: 50%; /* Adjusted for new column */
             position: relative;
             text-align: right;
             border: none;
@@ -174,7 +174,7 @@
             content: attr(data-label);
             position: absolute;
             left: 10px;
-            width: 45%;
+            width: 45%; /* Adjusted for new column */
             padding-right: 10px;
             white-space: normal;
             font-weight: bold;
@@ -219,7 +219,7 @@ button.logout:hover {
     <div class="table-responsive">
         <table id="queue-table">
             <thead>
-                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Номер стола</th><th>Действие</th></tr>
+                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Время записи</th><th>Зал</th><th>Номер стола</th><th>Действие</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -229,7 +229,7 @@ button.logout:hover {
     <div class="table-responsive">
         <table id="invited-table">
             <thead>
-                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th><th>Номер стола</th><th>Осталось</th><th>Действие</th></tr>
+                <tr><th>Имя</th><th>Телефон</th><th>Кол-во</th><th>Приглашён в</th><th>Зал</th><th>Номер стола</th><th>Осталось</th><th>Действие</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -347,6 +347,7 @@ button.logout:hover {
                     <td data-label="Телефон">${guest.phone || ''}</td>
                     <td data-label="Кол-во">${guest.count || ''}</td>
                     <td data-label="Время записи">${formatDate(guest.time)}</td>
+                    <td data-label="Зал">${guest.hall || ''}</td>
                     <td data-label="Номер стола"><input type="text" placeholder="№"></td>
                     <td data-label="Действие">
                         <button onclick="invite(this, ${index}, '${guest.name}', '${guest.lang || 'Русский'}')">Пригласить</button>
@@ -380,6 +381,7 @@ button.logout:hover {
                     <td data-label="Телефон">${guest.phone || ''}</td>
                     <td data-label="Кол-во">${guest.count || ''}</td>
                     <td data-label="Приглашён в">${formatDate(guest.invitedAt)}</td>
+                    <td data-label="Зал">${guest.hall || ''}</td>
                     <td data-label="Номер стола">${guest.tableNumber || ''}</td>
                     <td class="timer" data-label="Осталось">${timeText}</td>
                     <td data-label="Действие">${buttonHtml}</td>
@@ -518,7 +520,7 @@ button.logout:hover {
         resetLogoutTimer();
         loadGuests();
     }
-       function handleLogout() {
+        function handleLogout() {
         if (confirm("Вы действительно хотите выйти?")) {
             localStorage.clear();
             location.reload();
